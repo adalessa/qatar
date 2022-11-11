@@ -5,37 +5,28 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+
+	"github.com/adalessa/qatar/pkg/endpoint"
 )
 
 type TeamsEndpoint struct {
-	domain string
-	token  string
+	endpoint endpoint.Endpoint
 }
 
-const GetTeamsURI = "api/v1/team"
+const GetTeamsURI = "/api/v1/team"
 
 func NewEndpoint(
 	domain string,
 	token string,
 ) *TeamsEndpoint {
-	return &TeamsEndpoint{
-		domain: domain,
-		token:  token,
-	}
+	endpoint := endpoint.New(domain)
+	endpoint.SetToken(token)
+
+	return &TeamsEndpoint{endpoint}
 }
 
 func (t *TeamsEndpoint) GetTeams() (*GetTeamsResponse, error) {
-	path := fmt.Sprintf("%s/%s", t.domain, GetTeamsURI)
-	req, err := http.NewRequest(http.MethodGet, path, nil)
-	if err != nil {
-		return nil, fmt.Errorf("%w error creating the request to get the teams", err)
-	}
-
-	req.Header.Add("Authorization", t.token)
-
-	client := http.Client{}
-
-	resp, err := client.Do(req)
+	resp, err := t.endpoint.Request(http.MethodGet, GetTeamsURI, nil)
 
 	if err != nil {
 		return nil, fmt.Errorf("%w error getting the teams", err)

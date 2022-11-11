@@ -18,21 +18,32 @@ type App struct {
 }
 
 func NewApp() *App {
-	authEndpoint := auth.NewEndpoint(Domain)
-	email := os.Getenv("QATAR_EMAIL")
-	password := os.Getenv("QATAR_PASSWORD")
-	if email == "" || password == "" {
-		panic("no credentials")
-	}
-
-	tokenResp, err := authEndpoint.Login(email, password)
+	var token string
+	tokenRaw, err := os.ReadFile("/tmp/qatar_token")
 	if err != nil {
-		panic(err)
+		authEndpoint := auth.NewEndpoint(Domain)
+
+		email := os.Getenv("QATAR_EMAIL")
+		password := os.Getenv("QATAR_PASSWORD")
+		if email == "" || password == "" {
+			panic("no credentials")
+		}
+
+		tokenResp, err := authEndpoint.Login(email, password)
+		if err != nil {
+			panic(err)
+		}
+		if tokenResp.Status != "success" {
+			panic("cant get the token")
+		}
+		token = tokenResp.Credential.Token
+		err = os.WriteFile("/tmp/qatar_token", []byte(token), 0644)
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		token = string(tokenRaw)
 	}
-	if tokenResp.Status != "success" {
-		panic("cant get the token")
-	}
-	token := tokenResp.Credential.Token
 
 	return &App{
 		MatchesEndpoint:   matches.NewEndpoint(Domain, token),
@@ -42,4 +53,10 @@ func NewApp() *App {
 }
 
 func (a *App) Run() {
+	resp, err := a.MatchesEndpoint.GetByMatchDayID("3")
+	if err != nil {
+		panic(err)
+	}
+
+	println(resp.Matches)
 }

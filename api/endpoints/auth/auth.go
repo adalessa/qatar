@@ -1,52 +1,37 @@
 package auth
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+
+	"github.com/adalessa/qatar/pkg/endpoint"
 )
 
 type AuthEndpoint struct {
-	domain string
+	endpoint endpoint.Endpoint
 }
 
 const LoginURI = "api/v1/user/login"
 
 func NewEndpoint(domain string) *AuthEndpoint {
-	return &AuthEndpoint{domain: domain}
+	return &AuthEndpoint{
+		endpoint: endpoint.New(domain),
+	}
 }
 
 func (a *AuthEndpoint) Login(
 	email string,
 	password string,
 ) (*LoginResponse, error) {
-	path := fmt.Sprintf("%s/%s", a.domain, LoginURI)
-	content := struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}{
+
+	requestBody := CredentialRequest{
 		Email:    email,
 		Password: password,
 	}
 
-	json_data, err := json.Marshal(content)
-
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest(http.MethodPost, path, bytes.NewBuffer(json_data))
-	if err != nil {
-		return nil, fmt.Errorf("%w error creating the request to login", err)
-	}
-
-	req.Header.Add("Content-Type", "application/json")
-
-	client := http.Client{}
-
-	resp, err := client.Do(req)
+	resp, err := a.endpoint.Request(http.MethodPost, LoginURI, requestBody)
 
 	if err != nil {
 		return nil, fmt.Errorf("%w error getting login", err)
@@ -55,6 +40,7 @@ func (a *AuthEndpoint) Login(
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
+	fmt.Println(string(body))
 	if err != nil {
 		return nil, fmt.Errorf("%w error reading the response login", err)
 	}

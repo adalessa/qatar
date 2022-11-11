@@ -1,102 +1,81 @@
 package matches
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+
+	"github.com/adalessa/qatar/pkg/endpoint"
 )
 
 type MatchesEndpoint struct {
-	domain string
-	token  string
+	endpoint endpoint.Endpoint
 }
 
-const GetByMatchDayIDURI = "api/v1/bymatch/%s"
-const GetByIDURI = "api/v1/match/%s"
-const PostSearchByDate = "api/v1/bydate"
+const GetByMatchDayIDURI = "/api/v1/bymatch/%s"
+const GetByIDURI = "/api/v1/match/%s"
+const PostSearchByDate = "/api/v1/bydate"
 
 func NewEndpoint(
 	domain string,
 	token string,
 ) *MatchesEndpoint {
-	return &MatchesEndpoint{
-		domain: domain,
-		token:  token,
-	}
+	endpoint := endpoint.New(domain)
+	endpoint.SetToken(token)
+
+	return &MatchesEndpoint{endpoint}
 }
 func (t *MatchesEndpoint) GetById(ID string) (*MatchesResponse, error) {
-	return t.getRequest(fmt.Sprintf(GetByIDURI, ID))
+	matches, err := t.getRequest(fmt.Sprintf(GetByIDURI, ID))
+	if err != nil {
+		return nil, fmt.Errorf("%w error getting matches by id", err)
+	}
+
+	return matches, nil
 }
 
 func (t *MatchesEndpoint) GetByMatchDayID(MatchDayID string) (*MatchesResponse, error) {
-	return t.getRequest(fmt.Sprintf(GetByMatchDayIDURI, MatchDayID))
+	matches, err := t.getRequest(fmt.Sprintf(GetByMatchDayIDURI, MatchDayID))
+	if err != nil {
+		return nil, fmt.Errorf("%w error getting matches by id", err)
+	}
+
+	return matches, nil
 }
 
 func (t *MatchesEndpoint) GetByDate(date string) (*MatchesResponse, error) {
-	path := fmt.Sprintf("%s/%s", t.domain, PostSearchByDate)
-	content := struct {
-		Date string `json:"date"`
-	}{
+	requestBody := MatchesByDateRequest{
 		Date: date,
 	}
-	json_data, err := json.Marshal(content)
 
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest(http.MethodPost, path, bytes.NewBuffer(json_data))
-	if err != nil {
-		return nil, fmt.Errorf("%w error creating the request to get match by team id", err)
-	}
-
-	req.Header.Add("Authorization", t.token)
-	req.Header.Add("Content-Type", "application/json")
-
-	client := http.Client{}
-
-	resp, err := client.Do(req)
+	resp, err := t.endpoint.Request(http.MethodPost, PostSearchByDate, requestBody)
 
 	if err != nil {
 		return nil, fmt.Errorf("%w error getting the match by team di", err)
 	}
 
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("%w error reading the response getting the match by team id", err)
-	}
-
-	matchesResponse := MatchesResponse{}
-
-	return &matchesResponse, json.Unmarshal(body, &matchesResponse)
+	return decode_response(resp)
 }
 
 func (t *MatchesEndpoint) getRequest(uri string) (*MatchesResponse, error) {
-	path := fmt.Sprintf("%s/%s", t.domain, uri)
-	req, err := http.NewRequest(http.MethodGet, path, nil)
-	if err != nil {
-		return nil, fmt.Errorf("%w error creating the request to get match by team id", err)
-	}
-
-	req.Header.Add("Authorization", t.token)
-
-	client := http.Client{}
-
-	resp, err := client.Do(req)
+	resp, err := t.endpoint.Request(http.MethodGet, uri, nil)
 
 	if err != nil {
 		return nil, fmt.Errorf("%w error getting the match by team di", err)
 	}
 
-	defer resp.Body.Close()
+	return decode_response(resp)
+}
 
-	body, err := ioutil.ReadAll(resp.Body)
+func decode_response(r *http.Response) (*MatchesResponse, error) {
+	defer r.Body.Close()
+
+	body, err := ioutil.ReadAll(r.Body)
+
+	fmt.Println(string(body))
 	if err != nil {
-		return nil, fmt.Errorf("%w error reading the response getting the match by team id", err)
+		return nil, err
 	}
 
 	matchesResponse := MatchesResponse{}

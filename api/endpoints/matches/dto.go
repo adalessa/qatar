@@ -22,3 +22,7 @@ type MatchesResponse struct {
 	Status  string  `json:"status"`
 	Matches []Match `json:"data"`
 }
+
+type MatchesByDateRequest struct {
+	Date string `json:"date"`
+}
